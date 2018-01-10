@@ -71,7 +71,8 @@ export function noDelay() {
  * @return {number} - delay in milliseconds
  */
 export function exponentialDelay(retryNumber = 0) {
-  return (Math.pow(2, retryNumber) * 1000) + Math.floor(Math.random() * 1000);
+  if (retryNumber === 0) return 0;
+  return (Math.pow(2, retryNumber - 1) * 1000) + Math.floor(Math.random() * 1000);
 }
 
 /**
@@ -127,10 +128,10 @@ function fixConfig(axios, config) {
  *   });
  *
  * // Exponential back-off delay between requests
- * axiosRetry(axios, { delayStrategy: axiosRetry.exponentialDelay});
+ * axiosRetry(axios, { retryDelay: axiosRetry.exponentialDelay});
  *
  * // Custom delay strategy
- * axiosRetry(axios, { delayStrategy: (retryCount) => {
+ * axiosRetry(axios, { retryDelay: (retryCount) => {
  *   return retryCount * 1000;
  * }});
  *
@@ -159,8 +160,8 @@ function fixConfig(axios, config) {
  * @param {number} [defaultOptions.retries=3] Number of retries
  * @param {Function} [defaultOptions.retryCondition=isNetworkOrIdempotentRequestError]
  *        A function to determine if the error can be retried
- * @param {Function} [defaultOptions.delayStrategy=noDelay]
- *        A function to determine the delay between retry requestss
+ * @param {Function} [defaultOptions.retryDelay=noDelay]
+ *        A function to determine the delay between retry requests
  */
 export default function axiosRetry(axios, defaultOptions) {
   axios.interceptors.request.use((config) => {
@@ -180,7 +181,7 @@ export default function axiosRetry(axios, defaultOptions) {
     const {
       retries = 3,
       retryCondition = isNetworkOrIdempotentRequestError,
-      delayStrategy = noDelay
+      retryDelay = noDelay
     } = getRequestOptions(config, defaultOptions);
 
     const currentState = getCurrentState(config);
@@ -202,7 +203,7 @@ export default function axiosRetry(axios, defaultOptions) {
       }
 
       return new Promise((resolve) =>
-        setTimeout(() => resolve(axios(config)), delayStrategy(currentState.retryCount))
+        setTimeout(() => resolve(axios(config)), retryDelay(currentState.retryCount))
       );
     }
 
@@ -215,5 +216,4 @@ axiosRetry.isNetworkError = isNetworkError;
 axiosRetry.isSafeRequestError = isSafeRequestError;
 axiosRetry.isIdempotentRequestError = isIdempotentRequestError;
 axiosRetry.isNetworkOrIdempotentRequestError = isNetworkOrIdempotentRequestError;
-axiosRetry.noDelay = noDelay;
 axiosRetry.exponentialDelay = exponentialDelay;
